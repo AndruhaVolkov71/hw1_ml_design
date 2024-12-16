@@ -4,18 +4,15 @@ from minio import Minio
 from datetime import datetime
 
 def create_minio_bucket():
-    # Инициализация клиента MinIO
     client = Minio(
-        "minio:9000",  # Адрес MinIO
-        access_key="minioaccesskey",  # Ваш access key
-        secret_key="miniosecretkey",  # Ваш secret key
-        secure=False  # Используем HTTP (не HTTPS)
+        "minio:9000",
+        access_key="minioaccesskey",
+        secret_key="miniosecretkey",
+        secure=False
     )
 
-    # Имя бакета
     bucket_name = "movielens"
 
-    # Проверка существует ли бакет
     if not client.bucket_exists(bucket_name):
         try:
             # Создание бакета
@@ -26,7 +23,6 @@ def create_minio_bucket():
     else:
         print(f"Bucket {bucket_name} already exists.")
 
-# Определение DAG
 dag = DAG(
     'create_minio_bucket_dag',
     description='Create bucket in MinIO',
@@ -35,7 +31,6 @@ dag = DAG(
     catchup=False,
 )
 
-# Задача для создания бакета
 create_bucket_task = PythonOperator(
     task_id='create_minio_bucket',
     python_callable=create_minio_bucket,

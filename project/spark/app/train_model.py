@@ -30,11 +30,6 @@ spark.sparkContext._jsc.hadoopConfiguration().set("fs.s3a.connection.establish.t
 spark.sparkContext._jsc.hadoopConfiguration().set("fs.s3a.connection.timeout", "10000")
 spark.sparkContext.setLogLevel("WARN")
 
-
-# Читаем аргументы
-# input_path = "s3a://movielens/ml-latest-small/ratings.csv"  # Путь к тренировочному датасету
-# output_model_path = "s3a://movielens/model"      # Путь для сохранения модели
-# output_metrics_path = "/opt/airflow/data/metrics.json" 
 train_path = "s3a://movielens/train.csv"
 test_path = "s3a://movielens/test.csv"
 output_metrics_path = "/opt/airflow/data/metrics.json" 
@@ -47,11 +42,9 @@ ratings_schema = StructType([
     StructField('timestamp', IntegerType(), True)
 ])
 
-# Чтение данных
 ratings_train = spark.read.csv(train_path, header=True, schema=ratings_schema)
 ratings_test = spark.read.csv(test_path, header=True, schema=ratings_schema)
 
-# Создаем ALS модель
 print('############ CREATE MODEL #################')
 als = ALS(
     userCol="userId",
@@ -62,19 +55,15 @@ als = ALS(
     coldStartStrategy="drop"
 )
 
-# Тренировка модели
 print('#################### FIT MODEL ###############')
 model = als.fit(ratings_train)
 
-# Сохранение модели
 print('####################### SAVE MODEL ################')
 model.write().overwrite().save(output_model_path)
 print(f"Модель успешно сохранена в {output_model_path}")
-# Генерация предсказаний
 predictions = model.transform(ratings_test)
 predictions = predictions.dropna(subset=["prediction"])
 
-# Вычисление метрики RMSE
 evaluator = RegressionEvaluator(
     metricName="rmse",
     labelCol="rating",
@@ -84,7 +73,6 @@ print('############## START EVAL MODEL #################')
 rmse = evaluator.evaluate(predictions)
 print(f"Root-mean-square error (RMSE) on the training dataset: {rmse}")
 
-# Запись метрики в JSON файл
 metrics = {
     "rmse": rmse
 }
