@@ -7,6 +7,7 @@ from pyspark.sql.functions import col
 from pyspark.sql.types import StructType, StructField, FloatType, IntegerType, TimestampType
 from pyspark.ml.evaluation import RegressionEvaluator
 import sys
+import boto3
 sys.path.append('.')
 import os
 
@@ -17,6 +18,8 @@ minio_access_key = 'minioaccesskey'
 minio_secret_key = 'miniosecretkey'
 # minio_endpoint = 'http://localhost:9000'
 minio_endpoint = 'http://minio:9000'
+bucket_name = "movielens"
+predictions_file = "predictions.csv"
 
 print('############## AFTER CONNECTION SERVER ############')
 
@@ -62,7 +65,31 @@ print('####################### SAVE MODEL ################')
 model.write().overwrite().save(output_model_path)
 print(f"Модель успешно сохранена в {output_model_path}")
 predictions = model.transform(ratings_test)
-predictions = predictions.dropna(subset=["prediction"])
+# predictions = predictions.dropna(subset=["prediction"])
+
+
+# Сохранение предсказаний в MinIO
+def save_predictions_to_minio(predictions, bucket_name, output_file):
+    # Настройка клиента MinIO
+    minio_client = boto3.client(
+        "s3",
+        endpoint_url=minio_endpoint,
+        aws_access_key_id=minio_access_key,
+        aws_secret_access_key=minio_secret_key,
+    )
+
+    # Конвертация Spark DataFrame в Pandas DataFrame
+    predictions_pd = predictions.toPandas()
+
+    # Сохранение предсказаний как CSV
+    predictions_pd.to_csv(output_file, index=False)
+
+    # Загрузка CSV в MinIO
+    minio_client.upload_file(output_file, bucket_name, output_file)
+    print(f"Файл {output_file} успешно сохранен в бакет {bucket_name}")
+
+print(predictions.show(20, False))
+save_predictions_to_minio(predictions, bucket_name, predictions_file)
 
 evaluator = RegressionEvaluator(
     metricName="rmse",
